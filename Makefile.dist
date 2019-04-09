@@ -1,0 +1,60 @@
+start:
+	docker-compose up --build
+
+stop:
+	docker-compose stop
+
+##########################################################################
+
+ci: cs lint test security
+
+cs:
+	vendor/bin/php-cs-fixer fix --verbose
+
+lint:
+	bin/console lint:yaml config/
+	bin/console lint:yaml fixtures/
+
+security:
+	vendor/bin/security-checker security:check
+
+test:
+	rm -rf var/cache/test/* var/logs/test/*
+	bin/console cache:clear --env=test
+	bin/console doctrine:database:drop --force --env=test
+	bin/console doctrine:database:create --env=test
+	bin/console doctrine:schema:create --env=test
+	bin/console doctrine:fixtures:load --no-interaction --env=test
+	bin/phpunit
+
+test-coverage:
+	rm -rf var/cache/test/* var/logs/test/* var/coverage/*
+	bin/console cache:clear --env=test
+	bin/console doctrine:database:drop --force --env=test
+	bin/console doctrine:database:create --env=test
+	bin/console doctrine:schema:create --env=test
+	bin/console doctrine:fixtures:load --no-interaction --env=test
+	php -dzend_extension=xdebug.so bin/phpunit --coverage-html=var/coverage/
+
+reload:
+	rm -rf var/cache/dev/* var/logs/dev/*
+	bin/console cache:clear --env=dev
+	bin/console doctrine:database:drop --force  --env=dev
+	bin/console doctrine:database:create --env=dev
+	bin/console doctrine:migrations:migrate --no-interaction --env=dev
+	bin/console doctrine:fixtures:load --no-interaction --env=dev
+
+##########################################################################
+
+build:
+	APP_ENV=dev composer install -o
+	bin/console doctrine:cache:clear-metadata --env=dev
+	bin/console doctrine:cache:clear-query --env=dev
+	bin/console doctrine:cache:clear-result --env=dev
+
+build-prod:
+	APP_ENV=prod composer install -o --no-dev
+	bin/console cache:clear --env=prod
+	bin/console doctrine:cache:clear-metadata --env=prod
+	bin/console doctrine:cache:clear-query --env=prod
+	bin/console doctrine:cache:clear-result --env=prod
